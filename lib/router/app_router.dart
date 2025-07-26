@@ -11,6 +11,7 @@ import 'package:saba2v2/screens/business/CarsScreens/CarRentalEditProfile.dart';
 import 'package:saba2v2/screens/business/CarsScreens/CarRentalHomeScreen.dart';
 import 'package:saba2v2/screens/business/CarsScreens/CarRentalSettingsProvider.dart';
 import 'package:saba2v2/screens/business/CarsScreens/OrderDetails.dart';
+import 'package:saba2v2/screens/business/CarsScreens/add_car_rent.dart';
 import 'package:saba2v2/screens/business/CarsScreens/delivery_person_inforamtion.dart';
 import 'package:saba2v2/screens/business/CarsScreens/driver_car_info.dart';
 import 'package:saba2v2/screens/business/Public/ChangeProfilePass.dart';
@@ -429,15 +430,20 @@ class AppRouter {
           name: 'SettingsUser',
           builder: (context, state) => const SettingsUser(),
         ),
-        // شاشة تفاصيل المطعم
-        GoRoute(
-          path: '/restaurant-details/:id',
-          name: 'restaurantDetails',
-          builder: (context, state) {
-            final id = state.pathParameters['id']!;
-            return RestaurantDetailsScreen(restaurantId: id);
-          },
+         GoRoute(
+          path: '/AddCarRental',
+          name: 'AddCarRental',
+          builder: (context, state) => const AddCarRental(),
         ),
+        // شاشة تفاصيل المطعم
+        // GoRoute(
+        //   path: '/restaurant-details/:id',
+        //   name: 'restaurantDetails',
+        //   builder: (context, state) {
+        //     final id = state.pathParameters['id']!;
+        //     return RestaurantDetailsScreen(restaurantId: id);
+        //   },
+        // ),
 
         // **********************************************************************
         // *                        شاشات إضافية                                *

@@ -520,10 +520,13 @@ class _CarRentalHomeScreenState extends State<CarRentalHomeScreen> {
         case 0:
           context.go('/RealStateHomeScreen');
           break;
-        case 1:
-          context.go('/CarRentalAnalysisScreen');
+          case 1:
+          context.go('/AddCarRental');
           break;
         case 2:
+          context.go('/CarRentalAnalysisScreen');
+          break;
+        case 3:
           context.go('/CarRentalSettingsProvider');
           break;
 
@@ -532,6 +535,7 @@ class _CarRentalHomeScreenState extends State<CarRentalHomeScreen> {
 
     final List<Map<String, String>> navIcons = [
       {"svg": "assets/icons/home_icon_provider.svg", "label": "الرئيسية"},
+      {"svg": "assets/icons/Nav_Menu_provider.svg", "label": "اضافه عربيه"},
       {"svg": "assets/icons/Nav_Analysis_provider.svg", "label": "الإحصائيات"},
       {"svg": "assets/icons/Settings.svg", "label": "الإعدادات"},
     ];

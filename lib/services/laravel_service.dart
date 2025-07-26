@@ -171,6 +171,7 @@ class LaravelService {
  
  Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('real_estate_id');
     final token = prefs.getString('token');
     try {
       await http.post(

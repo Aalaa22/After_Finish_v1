@@ -292,52 +292,47 @@ class AuthService {
 //   }
 
  Future<Map<String, dynamic>> login({
-    required String email, // تم تحديثه ليكون email بدلاً من identifier
-    required String password,
-  }) async {
-    try {
-      final Map<String, String> body = {
-        'email': email,
-        'password': password,
-      };
+  required String email,
+  required String password,
+}) async {
+  try {
+    final Map<String, String> body = { 'email': email, 'password': password };
 
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/login'),
-        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
-        body: jsonEncode(body),
-      );
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/login'),
+      headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+      body: jsonEncode(body),
+    );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final responseData = jsonDecode(response.body);
-        
-        // التحقق من وجود التوكن وبيانات المستخدم قبل الحفظ
-        if (responseData['token'] != null && responseData['user'] != null) {
-          await _saveToken(responseData['token']);
-          await _saveUserData(responseData['user']);
-        }
-        
-        return {
-          'status': responseData['status'] ?? true,
-          'message': responseData['message'] ?? 'Login successful',
-          'user': responseData['user'],
-        };
-      } else {
-        // طباعة رسالة الخطأ التفصيلية من السيرفر
-        debugPrint('API Login Error: ${response.body}');
-        final responseData = jsonDecode(response.body);
-        throw Exception(responseData['message'] ?? 'Login failed');
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final responseData = jsonDecode(response.body);
+      
+      // ==========================================================
+      // --- أضف جمل الطباعة هنا للتحقق ---
+      debugPrint("AuthService LOGIN: Login successful. API Response received.");
+      debugPrint("AuthService LOGIN: Full user data from API: ${jsonEncode(responseData['user'])}");
+      // ==========================================================
+      
+      if (responseData['token'] != null && responseData['user'] != null) {
+        await _saveToken(responseData['token']);
+        await _saveUserData(responseData['user']); // هذه الدالة ستحاول حفظ real_estate_id
       }
-    } catch (e) {
-      debugPrint('A NETWORK or CONNECTION error occurred during login: $e');
-      throw Exception('Error during login: $e');
+      
+      return {
+        'status': responseData['status'] ?? true,
+        'message': responseData['message'] ?? 'Login successful',
+        'user': responseData['user'],
+      };
+    } else {
+      debugPrint('AuthService LOGIN: API Login Error: ${response.body}');
+      final responseData = jsonDecode(response.body);
+      throw Exception(responseData['message'] ?? 'Login failed');
     }
-  
-
-  // ... (باقي الدوال مثل _saveToken, _saveUserData, etc.)
+  } catch (e) {
+    debugPrint('AuthService LOGIN: A NETWORK or CONNECTION error occurred during login: $e');
+    throw Exception('Error during login: $e');
+  }
 }
- 
- 
- 
   Future<void> _saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('token', token);
@@ -347,6 +342,17 @@ class AuthService {
    Future<void> _saveUserData(Map<String, dynamic> userData) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('user_data', jsonEncode(userData));
+
+    if (userData['real_estate'] != null && userData['real_estate']['id'] != null) {
+      final realEstateId = userData['real_estate']['id'];
+      await prefs.setInt('real_estate_id', realEstateId);
+      debugPrint("AuthService: Saved real_estate_id -> $realEstateId");
+    }
+  }
+
+  Future<int?> getRealEstateId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('real_estate_id');
   }
  
 
