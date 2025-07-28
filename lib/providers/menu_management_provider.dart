@@ -38,52 +38,28 @@ class MenuManagementProvider with ChangeNotifier {
   // --- دالة إضافة القسم (تعمل بشكل محلي ومؤقت) ---
   // =================================================================
   Future<bool> addSection({required int restaurantId, required String title}) async {
-    // --- بداية المنطق المحلي ---
-    _isLoading = true;
-    notifyListeners();
-    await Future.delayed(const Duration(milliseconds: 300)); // محاكاة وقت الشبكة
-
-    // التحقق من عدم وجود قسم بنفس الاسم
-    if (_sections.any((s) => s.title.trim().toLowerCase() == title.trim().toLowerCase())) {
-      _error = "هذا القسم موجود بالفعل";
-      _isLoading = false;
-      notifyListeners();
-      return false; // فشل لأن القسم مكرر
-    }
-
-    // إنشاء قسم جديد بـ ID مؤقت (سالب لتمييزه)
-    final newSection = MenuSection(
-      id: -DateTime.now().millisecondsSinceEpoch, // ID سالب ومؤقت
-      title: title,
-      items: [],
-    );
+  // --- الآن نستخدم الكود الحقيقي الذي يتصل بالـ API مباشرة ---
+  _isLoading = true;
+  notifyListeners();
+  try {
+    // استدعاء الخدمة لإضافة القسم على الخادم
+    final newSection = await _menuService.addSection(restaurantId: restaurantId, title: title);
+    
+    // في حال النجاح، قم بإضافة القسم الجديد إلى القائمة في التطبيق
     _sections.add(newSection);
-
+    _isLoading = false;
+    _error = null; // مسح أي خطأ سابق
+    notifyListeners();
+    return true; // إرجاع "نجاح"
+  } catch (e) {
+    // في حال الفشل، قم بتخزين رسالة الخطأ
+    _error = "فشل إضافة القسم: ${e.toString()}";
     _isLoading = false;
     notifyListeners();
-    debugPrint("Added section '${title}' locally for testing.");
-    return true; // نجاح العملية محليًا
-    // --- نهاية المنطق المحلي ---
-
-    /* 
-    // --- الكود الحقيقي الذي سنعود إليه بعد إصلاح الـ API ---
-    _isLoading = true;
-    notifyListeners();
-    try {
-      final newSection = await _menuService.addSection(restaurantId: restaurantId, title: title);
-      _sections.add(newSection);
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _error = "فشل إضافة القسم: $e";
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-    */
+    debugPrint(_error); // طباعة الخطأ في الكونسول للتشخيص
+    return false; // إرجاع "فشل"
   }
-
+}
   /// حذف قسم عبر الـ API (حقيقي)
   Future<bool> deleteSection({required int sectionId}) async {
     // إذا كان الـ ID سالبًا، فهذا يعني أنه قسم محلي، احذفه محليًا فقط

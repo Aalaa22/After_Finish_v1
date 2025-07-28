@@ -11,7 +11,7 @@ import 'package:saba2v2/services/auth_service.dart';
 import 'package:saba2v2/services/image_upload_service.dart';
 
 class RestaurantMenuService {
-  final String _baseUrl = 'http://192.168.1.8:8000'; // تأكدي أن هذا هو الـ IP الصحيح
+  final String _baseUrl = 'http://192.168.1.7:8000'; // تأكدي أن هذا هو الـ IP الصحيح
   final AuthService _authService = AuthService();
   final ImageUploadService _imageUploadService = ImageUploadService();
 
@@ -85,6 +85,8 @@ class RestaurantMenuService {
   }
 }
   /// إضافة وجبة جديدة
+ 
+ 
   Future<MenuItem> addMenuItem({
     required int sectionId,
     required String name,

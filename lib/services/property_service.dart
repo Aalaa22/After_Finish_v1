@@ -7,7 +7,7 @@ import 'package:saba2v2/models/property_model.dart';
 import 'package:saba2v2/services/auth_service.dart'; // سنحتاجها لجلب التوكن
 
 class PropertyService {
-  final String _baseUrl = 'http://192.168.1.8:8000'; // نفس الـ Base URL
+  final String _baseUrl = 'http://192.168.1.7:8000'; // نفس الـ Base URL
   final AuthService _authService = AuthService(); // للوصول للتوكن
 
   // دالة لإضافة عقار جديد

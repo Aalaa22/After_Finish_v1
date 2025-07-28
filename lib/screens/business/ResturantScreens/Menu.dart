@@ -22,7 +22,6 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
   @override
   void initState() {
     super.initState();
-    // تأخير بسيط لضمان أن الـ Providers متاحة
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fetchInitialData();
     });
@@ -30,7 +29,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
 
   void _fetchInitialData() {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final restaurantId = authProvider.realEstateId; // نفترض أن هذا هو ID المطعم
+    final restaurantId = authProvider.realEstateId;
 
     if (restaurantId != null) {
       final menuProvider = Provider.of<MenuManagementProvider>(context, listen: false);
@@ -42,12 +41,11 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
         }
       });
     } else {
-      // التعامل مع حالة عدم وجود ID للمطعم
       debugPrint("Restaurant ID not found, cannot fetch menu.");
     }
   }
 
-  // --- نافذة إضافة قسم جديد ---
+  // --- نافذة إضافة قسم جديد (مع تعديل للتحقق من الأخطاء) ---
   void _showAddCategoryDialog(BuildContext context) {
     final controller = TextEditingController();
     final menuProvider = Provider.of<MenuManagementProvider>(context, listen: false);
@@ -67,18 +65,41 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
           ElevatedButton(
             onPressed: () async {
               final categoryName = controller.text.trim();
-              if (categoryName.isNotEmpty && authProvider.realEstateId != null) {
-                final success = await menuProvider.addSection(
-                  restaurantId: authProvider.realEstateId!,
-                  title: categoryName,
-                );
-                if (dialogContext.mounted) {
-                  Navigator.pop(dialogContext);
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text(success ? 'تم إضافة القسم بنجاح' : menuProvider.error ?? 'فشل إضافة القسم'),
-                    backgroundColor: success ? Colors.green : Colors.red,
-                  ));
-                }
+              final restaurantId = authProvider.realEstateId;
+
+              // التحقق الأول: هل اسم القسم فارغ؟
+              if (categoryName.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('اسم القسم لا يمكن أن يكون فارغاً'),
+                  backgroundColor: Colors.red,
+                ));
+                return; // إيقاف التنفيذ
+              }
+
+              // التحقق الثاني: هل معرّف المطعم موجود؟
+              if (restaurantId == null) {
+                debugPrint("فشل إضافة قسم: restaurantId is null.");
+                // أغلق النافذة أولاً ثم اعرض الرسالة
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('خطأ: لم يتم العثور على المطعم. حاول تسجيل الخروج والدخول مجدداً.'),
+                  backgroundColor: Colors.red,
+                ));
+                return; // إيقاف التنفيذ
+              }
+
+              // إذا كانت كل الشروط صحيحة، قم بتنفيذ الطلب
+              final success = await menuProvider.addSection(
+                restaurantId: restaurantId,
+                title: categoryName,
+              );
+              
+              if (dialogContext.mounted) {
+                Navigator.pop(dialogContext);
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text(success ? 'تم إضافة القسم بنجاح' : menuProvider.error ?? 'فشل إضافة القسم'),
+                  backgroundColor: success ? Colors.green : Colors.red,
+                ));
               }
             },
             child: Text('إضافة'),
@@ -220,8 +241,10 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
           try {
             selectedSection = menuProvider.sections.firstWhere((s) => s.id == _selectedSectionId);
           } catch (e) {
-            _selectedSectionId = menuProvider.sections.first.id;
-            selectedSection = menuProvider.sections.first;
+            if (menuProvider.sections.isNotEmpty) {
+              _selectedSectionId = menuProvider.sections.first.id;
+              selectedSection = menuProvider.sections.first;
+            }
           }
         }
         final filteredMeals = selectedSection?.items ?? [];

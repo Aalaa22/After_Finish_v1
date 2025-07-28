@@ -29,6 +29,7 @@ dependencies:
   fl_chart: 0.63.0
   dropdown_button2: 2.3.9
   image_picker: 1.0.7
+  timeago: 3.6.1
 
 dev_dependencies:
   flutter_test:

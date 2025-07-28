@@ -164,18 +164,11 @@ class _RealStateSettingsProviderState extends State<RealStateSettingsProvider> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
-                          onPressed: () 
-                          { // استدعاء دالة logout من الـ Provider
-    context.read<AuthProvider>().logout();
-
-    // ملاحظة: ليس هناك حاجة لعمل context.go('/login') هنا،
-    // لأن GoRouter سيقوم بذلك تلقائيًا عندما يستمع للتغيير.
- },
-                          //=> context.go("/login"),
+                          onPressed: () => context.go("/login"),
                           icon: const Icon(Icons.logout, color: Colors.white, size: 20),
                           label: const Text(
                             "تسجيل الخروج",
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16,color: Colors.white),
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
                           ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.orange,
@@ -185,10 +178,8 @@ class _RealStateSettingsProviderState extends State<RealStateSettingsProvider> {
                             ),
                           ),
                         ),
-
-
-                        
                       ),
+                   
                     ],
                   ),
                 ),

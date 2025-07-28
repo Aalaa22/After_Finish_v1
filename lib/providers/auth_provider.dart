@@ -24,6 +24,8 @@ class AuthProvider with ChangeNotifier {
   final ImageUploadService _imageUploadService = ImageUploadService();
   int? _realEstateId;
 
+  
+
   // أضف Getter جديد
   int? get realEstateId => _realEstateId;
 
@@ -44,12 +46,17 @@ class AuthProvider with ChangeNotifier {
   // 3. الـ Getters (لقراءة الحالة من الواجهة)
   //============================================================================
 
-  AuthStatus get authStatus => _authStatus;
+   AuthStatus get authStatus => _authStatus;
   Map<String, dynamic>? get userData => _userData;
   bool get isLoggedIn => _authStatus == AuthStatus.authenticated;
   String? get token => _token;
   List<Property> get properties => _properties;
   bool get isLoading => _isLoading;
+  
+  // Getter لنوع المستخدم لتسهيل الوصول إليه من أي مكان
+  String? get userType => _userData?['user_type'];
+
+  
 
   //============================================================================
   // 4. دوال إدارة الحالة (Actions)
@@ -61,20 +68,27 @@ class AuthProvider with ChangeNotifier {
   }
 
   /// تحميل جلسة المستخدم من التخزين المحلي وجلب بياناته
-  Future<void> _loadUserSession() async {
+ Future<void> _loadUserSession() async {
     _token = await _authService.getToken();
     _userData = await _authService.getUserData();
-    _authService.getRealEstateId(); // <-- إضافة جديدة
 
-    if (_token != null && _realEstateId != null) {
+    if (_token != null && _userData != null) {
       _authStatus = AuthStatus.authenticated;
-      await fetchMyProperties(); // جلب العقارات تلقائيًا
+      debugPrint("AuthProvider SESSION: Session loaded. User type is: '$userType'.");
+
+      // التحقق من نوع المستخدم قبل جلب العقارات
+      if (userType == 'real_estate_office' || userType == 'real_estate_individual') {
+        debugPrint("AuthProvider SESSION: User is Real Estate. Fetching properties...");
+        await fetchMyProperties();
+      } else {
+        debugPrint("AuthProvider SESSION: User is not a real estate type. Skipping property fetch.");
+      }
+
     } else {
       _authStatus = AuthStatus.unauthenticated;
     }
     notifyListeners();
   }
-
   //-----------------------------------------------------
   // دوال خاصة بالمصادقة والعقارات
   //-----------------------------------------------------
@@ -86,49 +100,29 @@ class AuthProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    // استدعاء الخدمة لتسجيل الدخول
-    final result = await _authService.login(email: email, password: password);
+    try {
+      final result = await _authService.login(email: email, password: password);
 
-    // التحقق من نجاح العملية من الـ API
-    if (result['status'] == true) {
-      debugPrint("AuthProvider LOGIN: Login API call successful.");
+      if (result['status'] == true && result['user'] != null) {
+        debugPrint("AuthProvider LOGIN: Login API call successful.");
 
-      // إعادة قراءة كل شيء من SharedPreferences لضمان الحصول على أحدث البيانات
-      _token = await _authService.getToken();
-      _userData = await _authService.getUserData();
-      _realEstateId = await _authService.getRealEstateId();
+        // قراءة البيانات المحفوظة حديثًا بواسطة الخدمة
+        await _loadUserSession(); // هذه الدالة أصبحت ذكية وستقوم باللازم
 
-      // ==========================================================
-      // --- طباعة تشخيصية للتحقق من القيم المحفوظة ---
-      debugPrint("AuthProvider LOGIN: Token read from storage: $_token");
-      debugPrint(
-          "AuthProvider LOGIN: Real Estate ID read from storage: $_realEstateId");
-      // ==========================================================
-
-      // تحديث حالة المصادقة بناءً على البيانات الجديدة
-      if (_token != null && _realEstateId != null) {
-        debugPrint(
-            "AuthProvider LOGIN: Condition met. Setting status to AUTHENTICATED.");
-        _authStatus = AuthStatus.authenticated;
-
-        // جلب العقارات المرتبطة بالحساب الجديد
-        debugPrint("AuthProvider LOGIN: Now calling fetchMyProperties...");
-        await fetchMyProperties(); // هذه الدالة تحتوي على جملة طباعة أخرى
-        debugPrint("AuthProvider LOGIN: Finished calling fetchMyProperties.");
+        return result;
       } else {
-        debugPrint(
-            "AuthProvider LOGIN: Condition FAILED. One of the values is null.");
+        // في حالة فشل تسجيل الدخول من الـ API
         _authStatus = AuthStatus.unauthenticated;
+        return result;
       }
-    } else {
-      debugPrint("AuthProvider LOGIN: Login API call failed.");
+    } catch (e) {
+      debugPrint("AuthProvider LOGIN: An error occurred: $e");
+      _authStatus = AuthStatus.unauthenticated;
+      return {'status': false, 'message': 'حدث خطأ غير متوقع: $e'};
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-
-    // إيقاف مؤشر التحميل وإعلام الواجهة بالتغييرات النهائية
-    _isLoading = false;
-    notifyListeners();
-
-    return result;
   }
 
   Future<void> logout() async {
@@ -140,12 +134,15 @@ class AuthProvider with ChangeNotifier {
       _authStatus = AuthStatus.unauthenticated;
       _userData = null;
       _token = null;
-      _realEstateId = null;
       _properties.clear(); // مسح قائمة العقارات عند الخروج
       notifyListeners();
     }
   }
-
+  
+  
+  
+ 
+ 
   /// جلب عقارات المستخدم الحالي من الـ API
   // في ملف: lib/providers/auth_provider.dart
 

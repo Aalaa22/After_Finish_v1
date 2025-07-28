@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:saba2v2/models/car_model.dart';
 
-
 class CarCard extends StatelessWidget {
   final Car car;
   final VoidCallback onTap;
@@ -27,6 +26,7 @@ class CarCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+
             ClipRRect(
               borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
               child: Image.network(
@@ -42,15 +42,11 @@ class CarCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                   Row(
+                  Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('${car.carType} ${car.carModel}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
-                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(12)),
-                        child: Text(car.governorate, style: TextStyle(color: Colors.blue.shade800, fontSize: 12, fontWeight: FontWeight.w600)),
-                      ),
+
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -65,11 +61,48 @@ class CarCard extends StatelessWidget {
                       Text(car.carPlateNumber, style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w500)),
                     ],
                   ),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: _buildReviewStatus(car.isReviewed),
+                  ),
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildReviewStatus(bool isReviewed) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: isReviewed ? Colors.green[100] : Colors.red[100],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isReviewed ? Colors.green : Colors.red,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isReviewed ? Icons.check_circle : Icons.hourglass_bottom,
+            color: isReviewed ? Colors.green : Colors.red,
+            size: 18,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            isReviewed ? "تم القبول" : "تحت المراجعة",
+            style: TextStyle(
+              color: isReviewed ? Colors.green[800] : Colors.red[800],
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+        ],
       ),
     );
   }

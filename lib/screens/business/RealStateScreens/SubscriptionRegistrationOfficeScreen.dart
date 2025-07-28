@@ -64,7 +64,7 @@ class _SubscriptionRegistrationOfficeScreenState
   ];
 
   // Base URL for the Laravel API
-  static const String _baseUrl = 'http://192.168.1.8:8000'; // Replace with your actual API base URL
+  static const String _baseUrl = 'http://192.168.1.7:8000'; // Replace with your actual API base URL
 
   Future<void> _pickFile(String fieldName) async {
     if (_isLoading) return; // Prevent picking new image during loading
