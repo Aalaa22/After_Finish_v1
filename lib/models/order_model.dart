@@ -4,7 +4,7 @@ class OrderModel {
   final String customerImage;
   final DateTime orderTime;
   final double totalAmount;
-  final String status; // قيد الانتظار، قيد التنفيذ، منتهية
+  final String status;
   final List<OrderItem> items;
 
   OrderModel({
@@ -17,17 +17,33 @@ class OrderModel {
     required this.items,
   });
 
+  // دالة لتحويل الـ JSON إلى كائن OrderModel
   factory OrderModel.fromJson(Map<String, dynamic> json) {
+    // ترجمة حالة الطلب من الإنجليزية إلى العربية
+    String mapStatus(String status) {
+      switch (status.toLowerCase()) {
+        case 'pending':
+          return 'قيد الانتظار';
+        case 'processing':
+          return 'قيد التنفيذ';
+        case 'completed':
+        case 'delivered':
+          return 'منتهية';
+        default:
+          return status; // للحالات غير المتوقعة
+      }
+    }
+
     return OrderModel(
-      id: json['id'],
-      customerName: json['customerName'],
-      customerImage: json['customerImage'],
-      orderTime: DateTime.parse(json['orderTime']),
-      totalAmount: json['totalAmount'].toDouble(),
-      status: json['status'],
-      items: (json['items'] as List)
-          .map((item) => OrderItem.fromJson(item))
-          .toList(),
+      id: json['order_number'] ?? 'N/A',
+      customerName: json['user']?['name'] ?? 'زبون',
+      customerImage: json['user']?['profile_image'] ?? "assets/images/user_avatar.jpg",
+      orderTime: DateTime.parse(json['created_at']),
+      totalAmount: double.tryParse(json['total_price'].toString()) ?? 0.0,
+      status: mapStatus(json['status']),
+      items: (json['items'] as List<dynamic>?)
+              ?.map((itemJson) => OrderItem.fromJson(itemJson))
+              .toList() ?? [],
     );
   }
 }
@@ -45,12 +61,13 @@ class OrderItem {
     required this.quantity,
   });
 
+  // دالة لتحويل الـ JSON إلى كائن OrderItem
   factory OrderItem.fromJson(Map<String, dynamic> json) {
     return OrderItem(
-      name: json['name'],
-      image: json['image'],
-      price: json['price'].toDouble(),
-      quantity: json['quantity'],
+      name: json['title'] ?? '',
+      image: json['image'] ?? "assets/images/pizza.jpg", // صورة افتراضية
+      price: double.tryParse(json['unit_price'].toString()) ?? 0.0,
+      quantity: json['quantity'] ?? 0,
     );
   }
 }

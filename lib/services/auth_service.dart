@@ -302,7 +302,7 @@ final LaravelService _laravelService = LaravelService();
 
 //------------------- بدايه اخر كومنت------------------------------------------
 //------------------------------------------------------------------------------
-  Future<Map<String, dynamic>> login({
+ /* Future<Map<String, dynamic>> login({
   required String email,
   required String password,
 }) async {
@@ -415,9 +415,128 @@ Future<void> _saveUserData(Map<String, dynamic> userData) async {
   Future<Map<String, dynamic>?> getUserData() async {
     return await _laravelService.getUserData();
   }
-
+*/
 //--------------------نهايه اخر كومنت ----------------------------------
  //---------------------------------------------------------------------
  
+
+ 
+
+
+ Future<Map<String, dynamic>> login({required String email, required String password}) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/login'),
+        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+        body: jsonEncode({'email': email, 'password': password}),
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        debugPrint("AuthService: Login successful. API Response received.");
+        
+        // **التصحيح الحاسم: قراءة التوكن والبيانات من المسار الصحيح**
+        if (responseData['token'] != null && responseData['user'] != null) {
+          await _saveSession(
+            token: responseData['token'], // المسار الصحيح
+            userData: responseData['user'],
+          );
+        }
+        return {'status': true, 'message': 'Login successful', 'user': responseData['user']};
+      } else {
+        final errorData = jsonDecode(response.body);
+        throw Exception(errorData['message'] ?? 'Failed to login');
+      }
+    } catch (e) {
+      throw Exception('Network or server error during login: $e');
+    }
+  }
+
+  /// دالة حفظ الجلسة (النسخة النهائية المصححة لتطابق الـ JSON)
+  Future<void> _saveSession({required String token, required Map<String, dynamic> userData}) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('token', token);
+    await prefs.setString('user_data', jsonEncode(userData));
+    
+    await prefs.remove('entity_id'); // تصفير الـ ID القديم لضمان عدم التداخل
+    
+    // **التصحيح الحاسم: قراءة ID المطعم من المسار الصحيح**
+    int? entityId;
+    if (userData['restaurant_detail']?['id'] != null) {
+      entityId = userData['restaurant_detail']['id'];
+      debugPrint("AuthService SUCCESS: Found and saving restaurant ID: $entityId");
+    } else if (userData['real_estate']?['id'] != null) {
+      entityId = userData['real_estate']['id'];
+      debugPrint("AuthService SUCCESS: Found and saving real estate ID: $entityId");
+    }
+
+    if (entityId != null) {
+      // استخدام مفتاح موحد لحفظ ID المطعم أو العقار
+      await prefs.setInt('entity_id', entityId);
+    }
+  }
+
+  /// دالة تسجيل الخروج (النسخة النهائية الصحيحة)
+  Future<void> logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('token');
+    await prefs.remove('user_data');
+    await prefs.remove('entity_id');
+    try {
+      await _laravelService.logout();
+    } catch (e) {
+      debugPrint("Ignoring server logout error: $e");
+    }
+  }
+
+  // --- دوال مساعدة (النسخة النهائية الصحيحة) ---
+  Future<String?> getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('token');
+  }
+
+  Future<Map<String, dynamic>?> getUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString('user_data');
+    return data != null ? jsonDecode(data) : null;
+  }
+
+  Future<int?> getRealEstateId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('entity_id');
+  }
+
+
+  //--------------------------------------------
+
+  Future<Map<String, dynamic>> fetchSettings() async {
+    final url = Uri.parse('$baseUrl/api/settings'); // استخدام نفس الـ baseUrl
+    
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Accept': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        if (data['status'] == true && data['settings'] != null) {
+          // إذا نجح الطلب، قم بإرجاع خريطة الإعدادات
+          return data['settings'] as Map<String, dynamic>;
+        } else {
+          // في حال كان الرد من السيرفر بصيغة غير متوقعة
+          throw Exception('صيغة الرد من الـ API غير صحيحة.');
+        }
+      } else {
+        // في حال فشل الطلب (مثل خطأ 404 أو 500)
+        throw Exception('فشل تحميل الإعدادات. رمز الحالة: ${response.statusCode}');
+      }
+    } catch (e) {
+      // للتعامل مع أخطاء الشبكة أو أخطاء أخرى
+      debugPrint('حدث خطأ أثناء جلب الإعدادات: $e');
+      throw Exception('لا يمكن الاتصال بالخادم. يرجى التحقق من اتصالك بالإنترنت.');
+    }
+  }
 
 }
