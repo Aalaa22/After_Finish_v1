@@ -300,24 +300,9 @@ final LaravelService _laravelService = LaravelService();
     }
   }
 
-//  Future<Map<String, dynamic>> login({
-//     required String email,
-//     required String password,
-//   }) async {
-//     try {
-//       final result = await _authService.login(email: email, password: password);
-
-//       // إذا نجح تسجيل الدخول، قم بتحديث حالة التطبيق
-//       if (result['status'] == true) {
-//         await _loadUserSession(); // هذه الدالة ستقوم بجلب التوكن والبيانات المحفوظة وتحديث isLoggedIn
-//       }
-//       return result;
-//     } catch (e) {
-//       return {'status': false, 'message': e.toString()};
-//     }
-//   }
-
- Future<Map<String, dynamic>> login({
+//------------------- بدايه اخر كومنت------------------------------------------
+//------------------------------------------------------------------------------
+  Future<Map<String, dynamic>> login({
   required String email,
   required String password,
 }) async {
@@ -359,69 +344,60 @@ final LaravelService _laravelService = LaravelService();
     throw Exception('Error during login: $e');
   }
 }
- 
- 
- 
- 
- 
+
   Future<void> _saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('token', token);
   }
 
-
-  Future<void> _saveUserData(Map<String, dynamic> userData) async {
+Future<void> _saveUserData(Map<String, dynamic> userData) async {
     final prefs = await SharedPreferences.getInstance();
 
-    // 1. حفظ بيانات المستخدم الكاملة كنص JSON للرجوع إليها عند الحاجة
+    // 1. حفظ بيانات المستخدم الكاملة
     await prefs.setString('user_data', jsonEncode(userData));
 
-    // 2. حفظ الـ ID الخاص بكيان مكتب التأجير الرئيسي (CarRental)
+    // 2. حفظ بيانات تأجير السيارات
     if (userData['car_rental']?['id'] != null) {
       final carRentalId = userData['car_rental']['id'];
       await prefs.setInt('car_rental_id', carRentalId);
       debugPrint("AuthService: Saved car_rental_id -> $carRentalId");
     }
 
-    // 3. التحقق من وجود تفاصيل المكتب وحفظ كل البيانات الهامة منها
     final officeDetail = userData['car_rental']?['office_detail'];
     if (officeDetail != null) {
-      // حفظ الـ ID الخاص بتفاصيل المكتب
       if (officeDetail['id'] != null) {
-        final officeDetailId = officeDetail['id'];
-        await prefs.setInt('car_rental_office_detail_id', officeDetailId);
-        debugPrint("AuthService: Saved car_rental_office_detail_id -> $officeDetailId");
+        await prefs.setInt('car_rental_office_detail_id', officeDetail['id']);
       }
-
-      // **الإضافة الأهم: حفظ حالة المفاتيح بشكل صريح**
-      // هذا يضمن أن الشاشة الرئيسية ستجد هذه القيم عند التحميل
       if (officeDetail['is_available_for_delivery'] != null) {
-        final isDelivery = (officeDetail['is_available_for_delivery'] == true || officeDetail['is_available_for_delivery'] == 1);
-        await prefs.setBool('is_delivery_enabled', isDelivery);
-        debugPrint("AuthService: Saved is_delivery_enabled -> $isDelivery");
+        await prefs.setBool('is_delivery_enabled', officeDetail['is_available_for_delivery'] == true || officeDetail['is_available_for_delivery'] == 1);
       }
-
       if (officeDetail['is_available_for_rent'] != null) {
-        final isRent = (officeDetail['is_available_for_rent'] == true || officeDetail['is_available_for_rent'] == 1);
-        await prefs.setBool('is_rental_enabled', isRent);
-        debugPrint("AuthService: Saved is_rental_enabled -> $isRent");
+        await prefs.setBool('is_rental_enabled', officeDetail['is_available_for_rent'] == true || officeDetail['is_available_for_rent'] == 1);
       }
     }
 
-    // 4. حفظ بيانات العقارات (إذا وجدت)
+    // 3. حفظ بيانات العقارات
     if (userData['real_estate']?['id'] != null) {
       final realEstateId = userData['real_estate']['id'];
       await prefs.setInt('real_estate_id', realEstateId);
       debugPrint("AuthService: Saved real_estate_id -> $realEstateId");
     }
+    
+    // ==========================================================
+    // --- 4. الإضافة الجديدة: حفظ بيانات المطاعم ---
+    // ==========================================================
+    if (userData['restaurant_detail']?['id'] != null) {
+      final restaurantId = userData['restaurant_detail']['id'];
+      // **نستخدم نفس المفتاح 'real_estate_id' لتسهيل الأمر على AuthProvider**
+      await prefs.setInt('restaurantId', restaurantId); 
+      debugPrint("AuthService SUCCESS: Saved restaurantId as 'restaurantId' -> $restaurantId");
+    }
   }
-
 
   Future<int?> getRealEstateId() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt('real_estate_id');
   }
-
 
   Future<void> logout() async {
     try {
@@ -430,7 +406,8 @@ final LaravelService _laravelService = LaravelService();
       throw Exception('Error during logout: $e');
     }
   }
-
+ 
+ 
   Future<String?> getToken() async {
     return await _laravelService.getToken();
   }
@@ -438,4 +415,9 @@ final LaravelService _laravelService = LaravelService();
   Future<Map<String, dynamic>?> getUserData() async {
     return await _laravelService.getUserData();
   }
+
+//--------------------نهايه اخر كومنت ----------------------------------
+ //---------------------------------------------------------------------
+ 
+
 }

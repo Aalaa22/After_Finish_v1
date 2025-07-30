@@ -5,10 +5,191 @@ import 'package:intl/intl.dart' as intl;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
+import 'package:saba2v2/models/appointment_model.dart';
 import 'dart:io';
 
 import 'package:saba2v2/models/property_model.dart';
 import 'package:saba2v2/providers/auth_provider.dart';
+
+
+
+// يمكنك وضع هذا الكلاس فوق كلاس _RealStateHomeScreenState
+class AppointmentCard extends StatelessWidget {
+  final Appointment appointment;
+
+  const AppointmentCard({Key? key, required this.appointment}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Row for Property and Customer info
+            Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: CachedNetworkImage(
+                    imageUrl: appointment.property.imageUrl,
+                    width: 70,
+                    height: 70,
+                    fit: BoxFit.cover,
+                    errorWidget: (context, url, error) => Container(
+                        width: 70, height: 70, color: Colors.grey[200], child: const Icon(Icons.business)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'موعد لمعاينة: ${appointment.property.type}',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'بطلب من العميل: ${appointment.customer.name}',
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+
+            // Appointment Datetime
+            _buildInfoRow(
+              icon: Icons.calendar_today,
+              title: 'تاريخ وتوقيت الموعد',
+              // Using intl package for nice formatting
+              value: intl.DateFormat('EEEE, d MMMM yyyy - hh:mm a', 'ar').format(appointment.appointmentDatetime),
+            ),
+            const SizedBox(height: 12),
+
+            // Customer Note
+            if (appointment.note != null && appointment.note!.isNotEmpty)
+              _buildInfoRow(
+                icon: Icons.notes_rounded,
+                title: 'ملاحظات العميل',
+                value: appointment.note!,
+                isNote: true,
+              ),
+            
+            // Admin Note
+            if (appointment.adminNote != null && appointment.adminNote!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 12.0),
+                child: _buildInfoRow(
+                  icon: Icons.admin_panel_settings,
+                  title: 'ملاحظات الإدارة',
+                  value: appointment.adminNote!,
+                  isNote: true,
+                  iconColor: Colors.blue[700],
+                ),
+              ),
+
+            const SizedBox(height: 20),
+            
+            // Action Buttons
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () { /* TODO: Implement Logic */ },
+                    icon: const Icon(Icons.check_circle_outline),
+                    label: const Text('قبول'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () { /* TODO: Implement Logic */ },
+                    icon: const Icon(Icons.edit_calendar_outlined),
+                    label: const Text('تغيير'),
+                     style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow({
+    required IconData icon,
+    required String title,
+    required String value,
+    Color? iconColor,
+    bool isNote = false,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: iconColor ?? Colors.grey[600]),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (!isNote)
+                Text(
+                  value,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color.fromRGBO(151, 81, 0, 1)),
+                )
+              else
+                 Text(
+                  title,
+                  style: TextStyle(fontSize: 14, color: Colors.grey[800], fontWeight: FontWeight.bold),
+                ),
+              SizedBox(height: isNote ? 4 : 2),
+              if (isNote)
+                 Text(
+                  value,
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600], height: 1.5),
+                )
+              else
+                 Text(
+                  title,
+                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
 
 // تم الافتراض أن هذا الكلاس موجود في ملف models/property_model.dart
 // ولكن سأتركه هنا كما كان في الكود الأصلي لضمان عمله مباشرة
@@ -575,15 +756,18 @@ class _RealStateHomeScreenState extends State<RealStateHomeScreen>
   // --- تم حذف القائمة المحلية `_properties` بالكامل ---
 
   @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(_handleTabSelection);
+void initState() {
+  super.initState();
+  _tabController = TabController(length: 2, vsync: this);
+  _tabController.addListener(_handleTabSelection);
 
-    // جلب البيانات من الـ Provider فور بناء الشاشة
-    Future.microtask(() =>
-        Provider.of<AuthProvider>(context, listen: false).fetchMyProperties());
-  }
+  // --- التعديل: جلب بيانات العقارات والمواعيد ---
+  Future.microtask(() {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    authProvider.fetchMyProperties();
+    authProvider.fetchAppointments(); // <-- استدعاء الدالة الجديدة
+  });
+}
 
   @override
   void dispose() {
@@ -1226,122 +1410,48 @@ onPressed: () async {
                 children: [
                   Padding(
                     padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () => _selectTime(context),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 12),
-                                  decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(30)),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(Icons.access_time,
-                                          color: Colors.grey, size: 20),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                          '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')} ${_selectedTime.period == DayPeriod.am ? 'am' : 'pm'}',
-                                          style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold)),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () => _selectDate(context),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 12),
-                                  decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(30)),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(Icons.calendar_today,
-                                          color: Colors.grey, size: 20),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                          intl.DateFormat('dd/MM/yyyy')
-                                              .format(_selectedDate),
-                                          style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold)),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        Container(
-                          decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16)),
-                          child: TextField(
-                              controller: _notesController,
-                              maxLines: 4,
-                              textAlign: TextAlign.right,
-                              decoration: const InputDecoration(
-                                  hintText: 'ملاحظات',
-                                  hintStyle: TextStyle(color: Colors.grey),
-                                  border: InputBorder.none,
-                                  contentPadding: EdgeInsets.all(16))),
-                        ),
-                        const SizedBox(height: 20),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: () {},
-                                style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.orange,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 16),
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(30))),
-                                child: const Text('تغيير مع الإدارة',
-                                    style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold)),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: () {},
-                                style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.green,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 16),
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(30))),
-                                child: const Text('قبول موعد',
-                                    style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold)),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                    child:
+                     Consumer<AuthProvider>(
+        builder: (context, provider, child) {
+          if (provider.isLoadingAppointments) {
+            return const Center(child: CircularProgressIndicator(color: Colors.orange));
+          }
+
+          if (provider.appointmentsError != null) {
+            return Center(
+              child: Text('حدث خطأ: ${provider.appointmentsError}'),
+            );
+          }
+
+          if (provider.appointments.isEmpty) {
+            return const Center(
+              child: Text(
+                'لا توجد مواعيد مقترحة حاليًا.',
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16.0),
+            itemCount: provider.appointments.length,
+            itemBuilder: (context, index) {
+              final appointment = provider.appointments[index];
+              return AppointmentCard(appointment: appointment);
+            },
+          );
+        },
+      ),
+
+                 
                   ),
+
+
+
+
+
+
+
                   Stack(
                     children: [
                       Consumer<AuthProvider>(
