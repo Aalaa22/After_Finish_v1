@@ -30,4 +30,6 @@ class User {
       isApproved: json['is_approved'] == 1 || json['is_approved'] == true,
     );
   }
+
+  
 }

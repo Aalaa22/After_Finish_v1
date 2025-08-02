@@ -1,8 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:saba2v2/models/appointment_model.dart';
 import 'package:saba2v2/models/property_model.dart';
+import 'package:saba2v2/providers/conversation_provider.dart';
 import 'package:saba2v2/services/auth_service.dart';
 import 'package:saba2v2/services/image_upload_service.dart';
 import 'package:saba2v2/services/property_service.dart';
@@ -17,6 +21,7 @@ enum AuthStatus {
 
 /// Provider شامل لإدارة حالة المصادقة والعقارات في التطبيق
 class AuthProvider with ChangeNotifier {
+  bool _isFetchingAppointments = false;
   //============================================================================
   // 1. الخدمات والاعتماديات (Dependencies)
   //============================================================================
@@ -42,6 +47,10 @@ class AuthProvider with ChangeNotifier {
   List<Appointment> _appointments = [];
   bool _isLoadingAppointments = false;
   String? _appointmentsError;
+  
+  // -- الريفريش اللحظي --
+  Timer? _appointmentsRefreshTimer;
+  static const Duration _refreshInterval = Duration(seconds: 10); // كل 10 ثواني
 
   //============================================================================
   // 3. الـ Getters (لقراءة الحالة من الواجهة)
@@ -92,6 +101,8 @@ class AuthProvider with ChangeNotifier {
       if (userType == 'real_estate_office' ||
           userType == 'real_estate_individual') {
         await fetchMyProperties();
+        // بدء الريفريش اللحظي للمواعيد عند تسجيل الدخول
+        startAppointmentsAutoRefresh();
       }
     } else {
       _authStatus = AuthStatus.unauthenticated;
@@ -104,13 +115,19 @@ class AuthProvider with ChangeNotifier {
   //-----------------------------------------------------
 
   Future<Map<String, dynamic>> login(
-      {required String email, required String password}) async {
+      {required String email, required String password, BuildContext? context}) async {
     _isLoading = true;
     notifyListeners();
     try {
       final result = await _authService.login(email: email, password: password);
       // **التعديل الحاسم: استدعاء _loadUserSession سيقوم بتحديث كل شيء، بما في ذلك _realEstateId**
       await _loadUserSession();
+      
+      // بدء الريفريش اللحظي للمواعيد بعد تسجيل الدخول الناجح
+      if (isLoggedIn && (userType == 'real_estate_office' || userType == 'real_estate_individual')) {
+        startAppointmentsAutoRefresh();
+      }
+      
       return result;
     } catch (e) {
       await logout();
@@ -121,13 +138,20 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  Future<void> logout() async {
+  Future<void> logout([ConversationProvider? conversationProvider]) async {
+    // إيقاف الريفريش اللحظي قبل تسجيل الخروج
+    stopAppointmentsAutoRefresh();
+    
+    // تصفير بيانات المحادثات إذا تم تمرير المزود
+    conversationProvider?.clearData();
+    
     await _authService.logout();
     _authStatus = AuthStatus.unauthenticated;
     _userData = null;
     _token = null;
     _realEstateId = null; // **تصفير الـ ID عند الخروج**
     _properties.clear();
+    _appointments.clear(); // تصفير المواعيد عند الخروج
     notifyListeners();
   }
 
@@ -388,9 +412,100 @@ class AuthProvider with ChangeNotifier {
   String? get appointmentsError => _appointmentsError;
 
   Future<void> fetchAppointments() async {
+    if (_isFetchingAppointments) return;
+    _isFetchingAppointments = true;
     _isLoadingAppointments = true;
     _appointmentsError = null;
     notifyListeners();
+    try {
+      // استخدام endpoint موجود مؤقتاً حتى يتم إضافة الـ route الجديد
+      final url = Uri.parse('http://192.168.1.7:8000/api/appointments');
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $_token'
+        },
+      );
+      debugPrint('Silent Appointments Response Body: ${response.body}');
+      debugPrint('Appointments Response Body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final decodedData = json.decode(utf8.decode(response.bodyBytes));
+        
+        // التحقق من وجود البيانات قبل المعالجة
+        if (decodedData != null && decodedData is Map<String, dynamic>) {
+          final appointmentsResponse = AppointmentsResponse.fromJson(decodedData);
+          
+          // فلترة المواعيد لإظهار مواعيد مقدم الخدمة الحالي فقط
+          if (_userData != null && _userData!['id'] != null) {
+            final currentUserId = _userData!['id'];
+            _appointments = appointmentsResponse.appointments
+                .where((appointment) => appointment.provider?.id == currentUserId)
+                .toList();
+          } else {
+            _appointments = appointmentsResponse.appointments;
+          }
+          
+          // ترتيب المواعيد من الأجدد للأقدم
+          // الترتيب حسب تاريخ الإنشاء (الأحدث أولاً)
+          _appointments.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          debugPrint("تم جلب وترتيب المواعيد: ${_appointments.length} موعد، من الأجدد للأقدم");
+        } else {
+          _appointmentsError = 'Invalid response format from server';
+          _appointments = [];
+        }
+      } else {
+        _appointmentsError =
+            'Failed to load appointments. Status code: ${response.statusCode}';
+        debugPrint("Failed to fetch appointments. Status: ${response.statusCode}, Body: ${response.body}");
+        _appointments = [];
+      }
+    } catch (error) {
+      _appointmentsError = 'An error occurred: ${error.toString()}';
+      debugPrint("Error fetching appointments: $error");
+      _appointments = [];
+    } finally {
+      _isFetchingAppointments = false;
+      _isLoadingAppointments = false;
+      notifyListeners();
+    }
+  }
+
+  /// بدء الريفريش اللحظي للمواعيد
+  void startAppointmentsAutoRefresh() {
+    // إلغاء أي timer موجود مسبقاً
+    _appointmentsRefreshTimer?.cancel();
+    
+    // بدء timer جديد
+    _appointmentsRefreshTimer = Timer.periodic(_refreshInterval, (timer) {
+      // التحقق من أن المستخدم ما زال مسجل دخول
+      if (isLoggedIn) {
+        // جلب المواعيد بصمت (بدون إظهار loading indicator)
+        _fetchAppointmentsSilently();
+      } else {
+        // إيقاف التايمر إذا لم يعد المستخدم مسجل دخول
+        stopAppointmentsAutoRefresh();
+      }
+    });
+  }
+
+  /// إيقاف الريفريش اللحظي للمواعيد
+  void stopAppointmentsAutoRefresh() {
+    _appointmentsRefreshTimer?.cancel();
+    _appointmentsRefreshTimer = null;
+  }
+
+  /// إجبار الريفريش الفوري للمواعيد
+  Future<void> forceRefreshAppointments() async {
+    await _fetchAppointmentsSilently();
+  }
+
+  /// جلب المواعيد بصمت (بدون تغيير حالة التحميل)
+  Future<void> _fetchAppointmentsSilently() async {
+    if (_isFetchingAppointments) return;
+    _isFetchingAppointments = true;
     try {
       final url = Uri.parse('http://192.168.1.7:8000/api/appointments');
       final response = await http.get(
@@ -401,20 +516,67 @@ class AuthProvider with ChangeNotifier {
           'Authorization': 'Bearer $_token'
         },
       );
+      
       if (response.statusCode == 200) {
         final decodedData = json.decode(utf8.decode(response.bodyBytes));
-        final appointmentsResponse = AppointmentsResponse.fromJson(decodedData);
-        _appointments = appointmentsResponse.appointments;
-      } else {
-        _appointmentsError =
-            'Failed to load appointments. Status code: ${response.statusCode}';
+        
+        if (decodedData != null && decodedData is Map<String, dynamic>) {
+          final appointmentsResponse = AppointmentsResponse.fromJson(decodedData);
+          
+          List<Appointment> newAppointments;
+          if (_userData != null && _userData!['id'] != null) {
+            final currentUserId = _userData!['id'];
+            newAppointments = appointmentsResponse.appointments
+                .where((appointment) => appointment.provider?.id == currentUserId)
+                .toList();
+          } else {
+            newAppointments = appointmentsResponse.appointments;
+          }
+          
+          // الترتيب حسب تاريخ الإنشاء (الأحدث أولاً)
+          newAppointments.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          
+          // التحقق من وجود تغييرات قبل التحديث
+          if (_hasAppointmentsChanged(newAppointments)) {
+            _appointments = newAppointments;
+            _appointmentsError = null;
+            // إشعار المستمعين بالتحديث
+            notifyListeners();
+            debugPrint("تم تحديث المواعيد: ${_appointments.length} موعد، مرتبة من الأجدد للأقدم");
+          }
+        }
       }
     } catch (error) {
-      _appointmentsError = 'An error occurred: ${error.toString()}';
+      // في حالة الريفريش الصامت، لا نعرض الأخطاء للمستخدم
+      debugPrint("Silent refresh error: $error");
     } finally {
-      _isLoadingAppointments = false;
-      notifyListeners();
+      _isFetchingAppointments = false;
     }
+  }
+
+  /// التحقق من وجود تغييرات في المواعيد
+  bool _hasAppointmentsChanged(List<Appointment> newAppointments) {
+    if (_appointments.length != newAppointments.length) {
+      return true;
+    }
+    
+    // إنشاء خريطة للمواعيد الحالية للمقارنة السريعة
+    final currentAppointmentsMap = <int, Appointment>{};
+    for (final appointment in _appointments) {
+      currentAppointmentsMap[appointment.id] = appointment;
+    }
+    
+    // التحقق من وجود مواعيد جديدة أو تغييرات في الحالة
+    for (final newAppointment in newAppointments) {
+      final currentAppointment = currentAppointmentsMap[newAppointment.id];
+      if (currentAppointment == null || 
+          currentAppointment.status != newAppointment.status ||
+          currentAppointment.appointmentDatetime != newAppointment.appointmentDatetime) {
+        return true;
+      }
+    }
+    
+    return false;
   }
 
   Future<bool> approveAppointment({required int appointmentId}) async {
@@ -423,7 +585,8 @@ class AuthProvider with ChangeNotifier {
     try {
       final body = json.encode({
         "status": "provider_approved",
-        "notes": "تم تأكيد الموعد من قبل المكتب العقاري."
+        "provider_approved": true,
+        "notes": "تم تحديد الموعد من قبل المكتب"
       });
       final response = await http.put(
         url,
@@ -434,17 +597,49 @@ class AuthProvider with ChangeNotifier {
         },
         body: body,
       );
+      
       if (response.statusCode == 200) {
-        _appointments
-            .removeWhere((appointment) => appointment.id == appointmentId);
+        // تحديث حالة الموعد في القائمة المحلية بدلاً من حذفه
+        final appointmentIndex = _appointments.indexWhere((appointment) => appointment.id == appointmentId);
+        if (appointmentIndex != -1) {
+          // إنشاء موعد جديد بحالة محدثة
+          final originalAppointment = _appointments[appointmentIndex];
+          final updatedAppointment = Appointment(
+            id: originalAppointment.id,
+            appointmentDatetime: originalAppointment.appointmentDatetime,
+            note: originalAppointment.note,
+            adminNote: "تم تحديد الموعد من قبل المكتب",
+            status: "provider_approved",
+            property: originalAppointment.property,
+            customer: originalAppointment.customer,
+            provider: originalAppointment.provider,
+            createdAt: originalAppointment.createdAt, // تمرير القيمة الموجودة
+          );
+          
+          // استبدال الموعد القديم بالموعد المحدث
+          _appointments[appointmentIndex] = updatedAppointment;
+        }
         notifyListeners();
         return true;
       } else {
+        // طباعة رسالة الخطأ للتشخيص
+        debugPrint("Failed to approve appointment. Status: ${response.statusCode}, Body: ${response.body}");
         return false;
       }
     } catch (error) {
+      debugPrint("Error approving appointment: $error");
       return false;
     }
+  }
+
+  //============================================================================
+  // 5. تنظيف الموارد (Cleanup)
+  //============================================================================
+  
+  @override
+  void dispose() {
+    _appointmentsRefreshTimer?.cancel();
+    super.dispose();
   }
 }
 

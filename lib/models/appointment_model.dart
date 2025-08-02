@@ -41,6 +41,7 @@ class Appointment {
   final PropertyForAppointment property;
   final Customer customer;
   final ProviderUser provider;
+  final DateTime createdAt;
 
   Appointment({
     required this.id,
@@ -51,6 +52,7 @@ class Appointment {
     required this.property,
     required this.customer,
     required this.provider,
+    required this.createdAt,
   });
 
   factory Appointment.fromJson(Map<String, dynamic> json) {
@@ -64,6 +66,7 @@ class Appointment {
       property: PropertyForAppointment.fromJson(json['property'] as Map<String, dynamic>),
       customer: Customer.fromJson(json['customer'] as Map<String, dynamic>),
       provider: ProviderUser.fromJson(json['provider'] as Map<String, dynamic>),
+      createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
 }

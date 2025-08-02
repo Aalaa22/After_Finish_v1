@@ -78,7 +78,7 @@ class RequestData {
         rentalType: json["rental_type"],
         carCategory: json["car_category"],
         clientNotes: json["client_notes"],
-        fromLocation: json["FromLocation"], // قد تحتاج لتعديل الاسم حسب الـ API
-        toLocation: json["ToLocation"],     // قد تحتاج لتعديل الاسم حسب الـ API
+        fromLocation: json["from_location"], // Fixed: using snake_case
+        toLocation: json["to_location"],     // Fixed: using snake_case
     );
 }

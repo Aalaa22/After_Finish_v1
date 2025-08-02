@@ -421,9 +421,7 @@ Future<void> _saveUserData(Map<String, dynamic> userData) async {
  
 
  
-
-
- Future<Map<String, dynamic>> login({required String email, required String password}) async {
+Future<Map<String, dynamic>> login({required String email, required String password}) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/api/login'),
@@ -435,10 +433,10 @@ Future<void> _saveUserData(Map<String, dynamic> userData) async {
         final responseData = jsonDecode(response.body);
         debugPrint("AuthService: Login successful. API Response received.");
         
-        // **التصحيح الحاسم: قراءة التوكن والبيانات من المسار الصحيح**
         if (responseData['token'] != null && responseData['user'] != null) {
-          await _saveSession(
-            token: responseData['token'], // المسار الصحيح
+          // استدعاء دالة الحفظ الشاملة الجديدة
+          await _saveUserData(
+            token: responseData['token'],
             userData: responseData['user'],
           );
         }
@@ -452,29 +450,103 @@ Future<void> _saveUserData(Map<String, dynamic> userData) async {
     }
   }
 
-  /// دالة حفظ الجلسة (النسخة النهائية المصححة لتطابق الـ JSON)
-  Future<void> _saveSession({required String token, required Map<String, dynamic> userData}) async {
+  /// --- [تم تعديل هذه الدالة لتكون النسخة النهائية الشاملة] ---
+  /// دالة حفظ بيانات المستخدم والتوكن وكل الـ IDs
+  Future<void> _saveUserData({required String token, required Map<String, dynamic> userData}) async {
     final prefs = await SharedPreferences.getInstance();
+
+    // 1. حفظ التوكن وبيانات المستخدم الكاملة
     await prefs.setString('token', token);
     await prefs.setString('user_data', jsonEncode(userData));
+    debugPrint("AuthService: Saved token and user_data successfully.");
+
+    // 2. تصفير الـ IDs القديمة لضمان عدم التداخل
+    await prefs.remove('car_rental_id');
+    await prefs.remove('real_estate_id');
+    await prefs.remove('restaurant_id');
     
-    await prefs.remove('entity_id'); // تصفير الـ ID القديم لضمان عدم التداخل
-    
-    // **التصحيح الحاسم: قراءة ID المطعم من المسار الصحيح**
-    int? entityId;
-    if (userData['restaurant_detail']?['id'] != null) {
-      entityId = userData['restaurant_detail']['id'];
-      debugPrint("AuthService SUCCESS: Found and saving restaurant ID: $entityId");
-    } else if (userData['real_estate']?['id'] != null) {
-      entityId = userData['real_estate']['id'];
-      debugPrint("AuthService SUCCESS: Found and saving real estate ID: $entityId");
+    // --- [هذا هو الجزء الأهم] ---
+    // 3. استخلاص وحفظ car_rental_id إذا كان موجودًا
+    if (userData['car_rental']?['id'] != null) {
+      final carRentalId = userData['car_rental']['id'];
+      await prefs.setInt('car_rental_id', carRentalId);
+      debugPrint("AuthService SUCCESS: Found and saved car_rental_id -> $carRentalId");
     }
 
-    if (entityId != null) {
-      // استخدام مفتاح موحد لحفظ ID المطعم أو العقار
-      await prefs.setInt('entity_id', entityId);
+    // 4. استخلاص وحفظ real_estate_id إذا كان موجودًا
+    if (userData['real_estate']?['id'] != null) {
+      final realEstateId = userData['real_estate']['id'];
+      await prefs.setInt('real_estate_id', realEstateId);
+      debugPrint("AuthService SUCCESS: Found and saved real_estate_id -> $realEstateId");
+    }
+    
+    // 5. استخلاص وحفظ restaurant_id إذا كان موجودًا
+    if (userData['restaurant_detail']?['id'] != null) {
+      final restaurantId = userData['restaurant_detail']['id'];
+      await prefs.setInt('restaurant_id', restaurantId);
+      debugPrint("AuthService SUCCESS: Found and saved restaurant_id -> $restaurantId");
     }
   }
+
+   Future<int?> getCarRentalId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('car_rental_id');
+  }
+
+ 
+
+//  Future<Map<String, dynamic>> login({required String email, required String password}) async {
+//     try {
+//       final response = await http.post(
+//         Uri.parse('$baseUrl/api/login'),
+//         headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+//         body: jsonEncode({'email': email, 'password': password}),
+//       );
+
+//       if (response.statusCode == 200) {
+//         final responseData = jsonDecode(response.body);
+//         debugPrint("AuthService: Login successful. API Response received.");
+        
+//         // **التصحيح الحاسم: قراءة التوكن والبيانات من المسار الصحيح**
+//         if (responseData['token'] != null && responseData['user'] != null) {
+//           await _saveSession(
+//             token: responseData['token'], // المسار الصحيح
+//             userData: responseData['user'],
+//           );
+//         }
+//         return {'status': true, 'message': 'Login successful', 'user': responseData['user']};
+//       } else {
+//         final errorData = jsonDecode(response.body);
+//         throw Exception(errorData['message'] ?? 'Failed to login');
+//       }
+//     } catch (e) {
+//       throw Exception('Network or server error during login: $e');
+//     }
+//   }
+
+//   /// دالة حفظ الجلسة (النسخة النهائية المصححة لتطابق الـ JSON)
+//   Future<void> _saveSession({required String token, required Map<String, dynamic> userData}) async {
+//     final prefs = await SharedPreferences.getInstance();
+//     await prefs.setString('token', token);
+//     await prefs.setString('user_data', jsonEncode(userData));
+    
+//     await prefs.remove('entity_id'); // تصفير الـ ID القديم لضمان عدم التداخل
+    
+//     // **التصحيح الحاسم: قراءة ID المطعم من المسار الصحيح**
+//     int? entityId;
+//     if (userData['restaurant_detail']?['id'] != null) {
+//       entityId = userData['restaurant_detail']['id'];
+//       debugPrint("AuthService SUCCESS: Found and saving restaurant ID: $entityId");
+//     } else if (userData['real_estate']?['id'] != null) {
+//       entityId = userData['real_estate']['id'];
+//       debugPrint("AuthService SUCCESS: Found and saving real estate ID: $entityId");
+//     }
+
+//     if (entityId != null) {
+//       // استخدام مفتاح موحد لحفظ ID المطعم أو العقار
+//       await prefs.setInt('entity_id', entityId);
+//     }
+//   }
 
   /// دالة تسجيل الخروج (النسخة النهائية الصحيحة)
   Future<void> logout() async {
@@ -539,4 +611,47 @@ Future<void> _saveUserData(Map<String, dynamic> userData) async {
     }
   }
 
+  Future<Map<String, dynamic>> fetchCurrentUser() async {
+    final token = await getToken();
+    if (token == null) {
+      throw Exception("لا يمكن جلب البيانات: المستخدم غير مسجل.");
+    }
+
+    final url = Uri.parse('$baseUrl/api/user');
+    debugPrint("--- FETCHING CURRENT USER from $url ---");
+    
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      );
+      
+      debugPrint("Fetch current user response status: ${response.statusCode}");
+      debugPrint("Fetch current user response body: ${response.body}");
+
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        // الـ API قد يرجع البيانات مباشرة أو داخل مفتاح 'user'
+        Map<String, dynamic> userData;
+        if (responseData is Map<String, dynamic> && responseData.containsKey('user')) {
+            userData = responseData['user'];
+        } else {
+            userData = responseData;
+        }
+
+        debugPrint("!!! FETCH CURRENT USER SUCCESS !!!");
+        return userData;
+
+      } else {
+        throw Exception(responseData['message'] ?? 'فشل جلب بيانات المستخدم.');
+      }
+    } catch (e) {
+      debugPrint("!!! ERROR in fetchCurrentUser: $e !!!");
+      throw Exception("حدث خطأ في الشبكة أثناء جلب بيانات المستخدم.");
+    }
+  }
 }

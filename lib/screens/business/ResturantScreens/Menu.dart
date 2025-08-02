@@ -3,6 +3,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:saba2v2/models/MenuSection.dart';
 import 'package:saba2v2/models/MenuItem.dart';
 import 'package:saba2v2/providers/auth_provider.dart';
@@ -365,6 +367,16 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
           child: Scaffold(
             appBar: AppBar(
               title: const Text("إدارة القائمة"),
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  } else {
+                    context.go('/restaurant-home');
+                  }
+                },
+              ),
               actions: [
                 IconButton(onPressed: () => _showAddCategoryDialog(context), icon: const Icon(Icons.add_box_outlined, color: Colors.orange)),
                 IconButton(onPressed: () => _showManageCategoriesDialog(context, menuProvider.sections), icon: const Icon(Icons.list_alt, color: Colors.orange)),
@@ -427,6 +439,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
               icon: const Icon(Icons.add),
               backgroundColor: Colors.orange,
             ),
+            bottomNavigationBar: _buildBottomNavigationBar(context),
           ),
         );
       },
@@ -457,6 +470,115 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
         onTap: () {
           _showMealDetailsDialog(context, meal, sectionId);
         },
+      ),
+    );
+  }
+
+  Widget _buildBottomNavigationBar(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 8,
+            offset: Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isTablet = constraints.maxWidth > 600;
+              
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildNavItem(
+                    context,
+                    icon: 'assets/icons/home_icon_provider.svg',
+                    label: 'الرئيسية',
+                    isSelected: false,
+                    onTap: () => context.go('/restaurant-home'),
+                    isTablet: isTablet,
+                  ),
+                  _buildNavItem(
+                    context,
+                    icon: 'assets/icons/Nav_Menu_provider.svg',
+                    label: 'القائمة',
+                    isSelected: true,
+                    onTap: () {},
+                    isTablet: isTablet,
+                  ),
+                  _buildNavItem(
+                    context,
+                    icon: 'assets/icons/Nav_Analysis_provider.svg',
+                    label: 'الإحصائيات',
+                    isSelected: false,
+                    onTap: () => context.go('/RestaurantAnalysisScreen'),
+                    isTablet: isTablet,
+                  ),
+                  _buildNavItem(
+                    context,
+                    icon: 'assets/icons/Settings.svg',
+                    label: 'الإعدادات',
+                    isSelected: false,
+                    onTap: () => context.go('/SettingsProvider'),
+                    isTablet: isTablet,
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(
+    BuildContext context, {
+    required String icon,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+    required bool isTablet,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: isTablet ? 20 : 12,
+          vertical: isTablet ? 12 : 8,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.orange.withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(isTablet ? 16 : 12),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SvgPicture.asset(
+              icon,
+              width: isTablet ? 28 : 24,
+              height: isTablet ? 28 : 24,
+              colorFilter: ColorFilter.mode(
+                isSelected ? Colors.orange : Colors.grey[600]!,
+                BlendMode.srcIn,
+              ),
+            ),
+            SizedBox(height: isTablet ? 6 : 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: isTablet ? 14 : 12,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                color: isSelected ? Colors.orange : Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

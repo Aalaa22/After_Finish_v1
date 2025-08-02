@@ -10,6 +10,7 @@ import 'dart:io';
 
 import 'package:saba2v2/models/property_model.dart';
 import 'package:saba2v2/providers/auth_provider.dart';
+import 'package:saba2v2/screens/conversations_list_screen.dart';
 
 //==============================================================================
 // START: Appointment Card Widget
@@ -28,6 +29,36 @@ class _AppointmentCardState extends State<AppointmentCard> {
   bool _isApproving = false;
   // يمكنك إضافة حالة تحميل لزر التغيير هنا إذا أردت
   // bool _isChanging = false;
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'provider_approved':
+        return Colors.green;
+      case 'pending':
+        return Colors.orange;
+      case 'rejected':
+        return Colors.red;
+      case 'completed':
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _getStatusText(String status) {
+    switch (status) {
+      case 'provider_approved':
+        return 'تم القبول';
+      case 'pending':
+        return 'في الانتظار';
+      case 'rejected':
+        return 'مرفوض';
+      case 'completed':
+        return 'مكتمل';
+      default:
+        return 'غير محدد';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -117,80 +148,133 @@ class _AppointmentCardState extends State<AppointmentCard> {
 
             const SizedBox(height: 20),
 
-            // Action Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _isApproving ? null : () async {
-                      setState(() {
-                        _isApproving = true;
-                      });
-
-                      final provider = Provider.of<AuthProvider>(context, listen: false);
-                      final success = await provider.approveAppointment(appointmentId: widget.appointment.id);
-
-                      if (!mounted) return;
-
-                      if (success) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('تم قبول الموعد بنجاح!'),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                        // لا حاجة لـ setState هنا لأن الـ Provider سيقوم بإزالة العنصر
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('فشل قبول الموعد، يرجى المحاولة مرة أخرى.'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                        // إعادة الزر لحالته الطبيعية في حالة الفشل
-                        setState(() {
-                          _isApproving = false;
-                        });
-                      }
-                    },
-                    icon: _isApproving
-                        ? Container(
-                            width: 20,
-                            height: 20,
-                            child: const CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2.5,
-                            ),
-                          )
-                        : const Icon(Icons.check_circle_outline, size: 20),
-                    label: Text(_isApproving ? 'جاري القبول...' : 'قبول'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      disabledBackgroundColor: Colors.green.withOpacity(0.7),
-                    ),
-                  ),
+            // Status Badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: _getStatusColor(widget.appointment.status).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: _getStatusColor(widget.appointment.status),
+                  width: 1,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      // TODO: Implement Logic for changing appointment
-                    },
-                    icon: const Icon(Icons.edit_calendar_outlined, size: 20),
-                    label: const Text('تغيير'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
+              ),
+              child: Text(
+                _getStatusText(widget.appointment.status),
+                style: TextStyle(
+                  color: _getStatusColor(widget.appointment.status),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                 ),
-              ],
+              ),
             ),
+
+            const SizedBox(height: 16),
+
+            // Action Buttons - only show if appointment is not approved
+            if (widget.appointment.status != 'provider_approved')
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _isApproving ? null : () async {
+                        setState(() {
+                          _isApproving = true;
+                        });
+
+                        final provider = Provider.of<AuthProvider>(context, listen: false);
+                        final success = await provider.approveAppointment(appointmentId: widget.appointment.id);
+
+                        if (!mounted) return;
+
+                        if (success) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('تم قبول الموعد بنجاح!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('فشل قبول الموعد، يرجى المحاولة مرة أخرى.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          setState(() {
+                            _isApproving = false;
+                          });
+                        }
+                      },
+                      icon: _isApproving
+                          ? Container(
+                              width: 20,
+                              height: 20,
+                              child: const CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2.5,
+                              ),
+                            )
+                          : const Icon(Icons.check_circle_outline, size: 20),
+                      label: Text(_isApproving ? 'جاري القبول...' : 'قبول'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        disabledBackgroundColor: Colors.green.withOpacity(0.7),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ConversationsListScreen(),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.edit_calendar_outlined, size: 20),
+                      label: const Text('تغيير'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            else
+              // Show approved message
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.green, width: 1),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.green, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'تم قبول الموعد',
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
@@ -760,6 +844,8 @@ class _RealStateHomeScreenState extends State<RealStateHomeScreen>
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       authProvider.fetchMyProperties();
       authProvider.fetchAppointments();
+      // بدء الريفريش اللحظي للمواعيد
+      authProvider.startAppointmentsAutoRefresh();
     });
   }
 
@@ -767,10 +853,21 @@ class _RealStateHomeScreenState extends State<RealStateHomeScreen>
   void dispose() {
     _tabController.removeListener(_handleTabSelection);
     _tabController.dispose();
+    
+    // إيقاف الريفريش اللحظي عند الخروج من الشاشة
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    authProvider.stopAppointmentsAutoRefresh();
+    
     super.dispose();
   }
 
   void _handleTabSelection() {
+    // إذا تم التبديل إلى تبويب المواعيد (index 0)
+    if (_tabController.index == 0) {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      // إجبار ريفريش فوري للمواعيد
+      authProvider.forceRefreshAppointments();
+    }
     setState(() {});
   }
 
@@ -1397,7 +1494,12 @@ onPressed: () async {
                       }
 
                       return RefreshIndicator(
-                        onRefresh: () => provider.fetchAppointments(),
+                        onRefresh: () async {
+                          // إجبار الريفريش الفوري
+                          await provider.forceRefreshAppointments();
+                          // ثم جلب البيانات الكاملة
+                          await provider.fetchAppointments();
+                        },
                         child: ListView.builder(
                           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                           itemCount: provider.appointments.length,
@@ -1561,8 +1663,15 @@ onPressed: () async {
               children: [
                 _buildActionButton(
                     icon: Icons.message_outlined,
-                    badge: "5",
-                    onTap: () {},
+                    badge: "",
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ConversationsListScreen(),
+                        ),
+                      );
+                    },
                     isTablet: isTablet),
                 SizedBox(width: isTablet ? 16.0 : 12.0),
                 _buildActionButton(
@@ -1572,6 +1681,7 @@ onPressed: () async {
                     isTablet: isTablet),
               ],
             ),
+           
             Text("الرئيسية",
                 style: TextStyle(
                     fontSize: isTablet ? 24.0 : 20.0,

@@ -3,7 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:saba2v2/models/order_model.dart';
-import 'package:saba2v2/providers/order_provider.dart';
+import 'package:saba2v2/providers/restaurant_order_provider.dart';
 import 'package:saba2v2/widgets/restaurant_availability_switch.dart';
 import 'package:saba2v2/widgets/order_card.dart';
 import 'package:saba2v2/screens/business/ResturantScreens/order_details_screen.dart';
@@ -26,7 +26,7 @@ class _ResturantHomeScreenState extends State<ResturantHomeScreen> with TickerPr
     super.initState();
     _initializeControllers();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<OrderProvider>(context, listen: false).fetchOrders();
+      Provider.of<RestaurantOrderProvider>(context, listen: false).fetchOrders();
     });
   }
 
@@ -97,7 +97,8 @@ class _ResturantHomeScreenState extends State<ResturantHomeScreen> with TickerPr
   Widget _buildActionButtons(BuildContext context, bool isTablet) {
     return Row(
       children: [
-        _buildActionButton(icon: Icons.message_outlined, badge: "5", onTap: () {}, isTablet: isTablet),
+       
+        _buildActionButton(icon: Icons.message_outlined, badge: "", onTap: () => context.push("/conversations"), isTablet: isTablet),
         SizedBox(width: isTablet ? 16.0 : 12.0),
         _buildActionButton(icon: Icons.notifications_outlined, badge: "3", onTap: () => context.push("/NotificationsScreen"), isTablet: isTablet),
       ],
@@ -139,7 +140,7 @@ class _ResturantHomeScreenState extends State<ResturantHomeScreen> with TickerPr
   }
 
   Widget _buildMainContent(BuildContext context) {
-    final orderProvider = Provider.of<OrderProvider>(context);
+    final orderProvider = Provider.of<RestaurantOrderProvider>(context);
     final isTablet = MediaQuery.of(context).size.width >= 768.0;
     
     return Column(
@@ -172,21 +173,21 @@ class _ResturantHomeScreenState extends State<ResturantHomeScreen> with TickerPr
         unselectedLabelColor: const Color(0xFF6B7280),
         labelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: isTablet ? 16.0 : 14.0),
         unselectedLabelStyle: TextStyle(fontWeight: FontWeight.w500, fontSize: isTablet ? 16.0 : 14.0),
-        tabs: const [Tab(text: "قيد الانتظار"), Tab(text: "قيد التنفيذ"), Tab(text: "منتهية")],
+        tabs: const [Tab(text: "طلبات جديدة"), Tab(text: "قيد التنفيذ"), Tab(text: "منتهية")],
       ),
     );
   }
   
-  Widget _buildTabBarView(BuildContext context, bool isTablet, OrderProvider orderProvider) {
+  Widget _buildTabBarView(BuildContext context, bool isTablet, RestaurantOrderProvider orderProvider) {
     final isDesktop = MediaQuery.of(context).size.width >= 1024.0;
     return FadeTransition(
       opacity: _fadeAnimation,
       child: TabBarView(
         controller: _tabController,
         children: [
-          _buildOrdersList(orderProvider.pendingOrders, isTablet, isDesktop),
-          _buildOrdersList(orderProvider.processingOrders, isTablet, isDesktop),
-          _buildOrdersList(orderProvider.completedOrders, isTablet, isDesktop),
+          _buildOrdersList(orderProvider.getOrdersByStatus('accepted_by_admin'), isTablet, isDesktop),
+          _buildOrdersList(orderProvider.getOrdersByStatus('processing'), isTablet, isDesktop),
+          _buildOrdersList(orderProvider.getOrdersByStatus('completed'), isTablet, isDesktop),
         ],
       ),
     );
@@ -239,26 +240,29 @@ class _ResturantHomeScreenState extends State<ResturantHomeScreen> with TickerPr
       {"svg": "assets/icons/Settings.svg", "label": "الإعدادات"},
     ];
 
-    return BottomNavigationBar(
-      currentIndex: currentIndex,
-      onTap: onItemTapped,
-      type: BottomNavigationBarType.fixed,
-      backgroundColor: Colors.white,
-      selectedItemColor: Colors.orange,
-      unselectedItemColor: const Color(0xFF6B7280),
-      selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700),
-      unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
-      items: navItems.map((item) => BottomNavigationBarItem(
-        icon: Padding(
-          padding: const EdgeInsets.only(bottom: 4.0),
-          child: SvgPicture.asset(item["svg"]!, height: isTablet ? 28 : 24, colorFilter: const ColorFilter.mode(Color(0xFF6B7280), BlendMode.srcIn)),
-        ),
-        activeIcon: Padding(
-          padding: const EdgeInsets.only(bottom: 4.0),
-          child: SvgPicture.asset(item["svg"]!, height: isTablet ? 28 : 24, colorFilter: const ColorFilter.mode(Colors.orange, BlendMode.srcIn)),
-        ),
-        label: item["label"]!,
-      )).toList(),
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: BottomNavigationBar(
+        currentIndex: currentIndex,
+        onTap: onItemTapped,
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.white,
+        selectedItemColor: Colors.orange,
+        unselectedItemColor: const Color(0xFF6B7280),
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700),
+        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
+        items: navItems.map((item) => BottomNavigationBarItem(
+          icon: Padding(
+            padding: const EdgeInsets.only(bottom: 4.0),
+            child: SvgPicture.asset(item["svg"]!, height: isTablet ? 28 : 24, colorFilter: const ColorFilter.mode(Color(0xFF6B7280), BlendMode.srcIn)),
+          ),
+          activeIcon: Padding(
+            padding: const EdgeInsets.only(bottom: 4.0),
+            child: SvgPicture.asset(item["svg"]!, height: isTablet ? 28 : 24, colorFilter: const ColorFilter.mode(Colors.orange, BlendMode.srcIn)),
+          ),
+          label: item["label"]!,
+        )).toList(),
+      ),
     );
   }
 
